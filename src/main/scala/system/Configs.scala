@@ -86,3 +86,81 @@ class MMIOPortOnlyConfig extends Config(
 
 class BaseFPGAConfig extends Config(new BaseConfig ++ new WithCoherentBusTopology)
 class DefaultFPGAConfig extends Config(new WithNSmallCores(1) ++ new BaseFPGAConfig)
+
+import Chisel._
+import freechips.rocketchip.config._
+import freechips.rocketchip.devices.debug._
+import freechips.rocketchip.devices.tilelink._
+import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.rocket._
+import freechips.rocketchip.tile._
+// import freechips.rocketchip.util._
+
+class MySubsystemConfig extends Config ((site, here, up) => {
+  // Tile parameters
+  case PgLevels => if (site(XLen) == 64) 3 /* Sv39 */ else 2 /* Sv32 */
+  case XLen => 64 // Applies to all cores
+  case MaxHartIdBits => log2Up(site(TilesLocated(InSubsystem)).map(_.tileParams.hartId).max+1)
+  // Interconnect parameters
+  case SystemBusKey => SystemBusParams(
+    beatBytes = site(XLen)/8,
+    blockBytes = site(CacheBlockBytes))
+  case ControlBusKey => PeripheryBusParams(
+    beatBytes = site(XLen)/8,
+    blockBytes = site(CacheBlockBytes),
+    errorDevice = Some(BuiltInErrorDeviceParams(
+      errorParams = DevNullParams(List(AddressSet(0x3000, 0xfff)), maxAtomic=site(XLen)/8, maxTransfer=4096))))
+  case PeripheryBusKey => PeripheryBusParams(
+    beatBytes = site(XLen)/8,
+    blockBytes = site(CacheBlockBytes),
+    dtsFrequency = Some(100000000)) // Default to 100 MHz pbus clock
+  case MemoryBusKey => MemoryBusParams(
+    beatBytes = site(XLen)/8,
+    blockBytes = site(CacheBlockBytes))
+  case FrontBusKey => FrontBusParams(
+    beatBytes = site(XLen)/8,
+    blockBytes = site(CacheBlockBytes))
+  // Additional device Parameters
+  case BootROMLocated(InSubsystem) => Some(BootROMParams(contentFileName = "./bootrom/bootrom.img"))
+  case SubsystemExternalResetVectorKey => false
+  case DebugModuleKey => None
+  case CLINTKey => Some(CLINTParams())
+  case PLICKey => Some(PLICParams())
+  case TilesLocated(InSubsystem) => 
+    LegacyTileFieldHelper(site(RocketTilesKey), site(RocketCrossingKey), RocketTileAttachParams.apply _)
+})
+
+// class MyBaseConfig extends Config(
+//   new WithDefaultMemPort ++
+//   new WithDefaultMMIOPort ++
+//   new WithDefaultSlavePort ++
+//   new WithTimebase(BigInt(1000000)) ++ // 1 MHz
+//   new WithDTS("freechips,rocketchip-unknown", Nil) ++
+//   new WithNExtTopInterrupts(2) ++
+//   new BaseSubsystemConfig
+// )
+
+class WithNoDebug extends Config((site, here, up) => {
+  case DebugModuleKey => None
+})
+
+class MyBaseConfig extends Config(
+  new WithNoMemPort ++
+  new WithNMemoryChannels(0) ++
+  new WithNBanks(0) ++
+  new WithTimebase(BigInt(1000000)) ++ // 1 MHz
+  new With1TinyCore ++
+  new WithNExtTopInterrupts(2) ++
+  new BaseSubsystemConfig ++
+  new WithNoDebug
+)
+
+class MyBaseFPGAConfig extends Config(new MyBaseConfig ++ new WithCoherentBusTopology)
+// class MyFPGAConfig extends Config(new WithNSmallCores(1) ++ new MyBaseFPGAConfig)
+class MyFPGAConfig extends Config(
+  new TinyConfig ++
+  new WithJtagDTM ++
+  new WithDefaultBtb ++
+  new WithNExtTopInterrupts(2) ++
+  new WithL1DCacheWays(2) ++
+  new WithL1DCacheSets(16))
