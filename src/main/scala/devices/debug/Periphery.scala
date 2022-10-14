@@ -255,6 +255,7 @@ object Debug {
       (implicit p: Parameters): Unit =  {
     connectDebugClockAndReset(debugOpt, c)
     resetctrlOpt.map { rcio => rcio.hartIsInReset.map { _ := r }}
+    out := false.B
     debugOpt.map { debug =>
       debug.clockeddmi.foreach { d =>
         val dtm = Module(new SimDTM).connect(c, r, d, out)

@@ -144,23 +144,41 @@ class WithNoDebug extends Config((site, here, up) => {
   case DebugModuleKey => None
 })
 
+// class MyBaseConfig extends Config(
+//   new WithNoMemPort ++
+//   new WithNMemoryChannels(0) ++
+//   new WithNBanks(0) ++
+//   new WithTimebase(BigInt(1000000)) ++ // 1 MHz
+//   new With1TinyCore ++
+//   new WithNExtTopInterrupts(2) ++
+//   new BaseSubsystemConfig ++
+//   new WithNoDebug
+// )
+
 class MyBaseConfig extends Config(
-  new WithNoMemPort ++
-  new WithNMemoryChannels(0) ++
-  new WithNBanks(0) ++
+  new WithoutTLMonitors ++
+  // new WithDefaultMemPort ++
+  new testchipip.WithBackingScratchpad ++                   // add mbus backing scratchpad
+  new freechips.rocketchip.subsystem.WithNoMemPort ++       // remove offchip mem port
+  new WithDefaultMMIOPort ++
+  new WithDefaultSlavePort ++
   new WithTimebase(BigInt(1000000)) ++ // 1 MHz
-  new With1TinyCore ++
+  new WithDTS("freechips,rocketchip-unknown", Nil) ++
+  // new WithDefaultBtb ++
   new WithNExtTopInterrupts(2) ++
-  new BaseSubsystemConfig ++
-  new WithNoDebug
+  new WithNoDebug ++
+  // new WithL1DCacheWays(2) ++
+  // new WithL1DCacheSets(16) ++
+  new BaseSubsystemConfig
 )
 
 class MyBaseFPGAConfig extends Config(new MyBaseConfig ++ new WithCoherentBusTopology)
-// class MyFPGAConfig extends Config(new WithNSmallCores(1) ++ new MyBaseFPGAConfig)
-class MyFPGAConfig extends Config(
-  new TinyConfig ++
-  new WithJtagDTM ++
-  new WithDefaultBtb ++
-  new WithNExtTopInterrupts(2) ++
-  new WithL1DCacheWays(2) ++
-  new WithL1DCacheSets(16))
+class MyFPGAConfig extends Config(new WithNSmallCores(1) ++ new MyBaseFPGAConfig)
+// class MyFPGAConfig extends Config(
+//   new TinyConfig ++
+//   new WithNoDebug ++
+//   new WithTimebase(BigInt(1000000)) ++ // 1 MHz
+//   new WithDefaultBtb ++
+//   new WithNExtTopInterrupts(2) ++
+//   new WithL1DCacheWays(2) ++
+//   new WithL1DCacheSets(16))
